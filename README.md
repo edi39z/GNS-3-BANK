@@ -1,11 +1,3 @@
-<<<<<<< HEAD
-<div align="center">
-=======
-PROYEK FLAGSHIP v4.0 — PT BANK BARNIBAR (GNS3 ENTERPRISE LAB)
-
-<img width="2492" height="1382" alt="TOPOLOGI BANK" src="https://github.com/user-attachments/assets/867474d7-764a-4819-b180-51b406a44249" />
-
->>>>>>> 5d403fa5197ccc0f5854fda548ba2a7f7ec3fd5f
 
 # 🏦 PT Bank Barnibar — Enterprise Multi-Site Network v4.0
 
