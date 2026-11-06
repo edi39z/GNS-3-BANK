@@ -240,20 +240,4 @@ PROYEK-v4.0-BANK-BARNIBAR/
 
 ---
 
-## 👤 Penulis
 
-<div align="center">
-
-**Edi Suranta Ginting**
-
-Fresh Graduate Ilmu Komputer — fokus pada *Network Engineering*, *Network Security*, dan *Infrastructure Monitoring*
-
-[![GitHub](https://img.shields.io/badge/GitHub-edi39z-181717?style=for-the-badge&logo=github)](https://github.com/edi39z)
-
-</div>
-
----
-
-<div align="center">
-<sub>Dokumentasi ini bersifat <i>living document</i> — diperbarui setiap kali ada perubahan desain, milestone baru, atau insiden yang perlu dicatat.</sub>
-</div>
