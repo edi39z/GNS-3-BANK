@@ -1,0 +1,38 @@
+# === OS & Editor ===
+Thumbs.db
+Desktop.ini
+.DS_Store
+*.swp
+*~
+
+# === Berkas proyek GNS3 / emulator (berukuran besar, tidak dipublikasikan) ===
+*.gns3
+*.gns3project
+project-files/
+*.qcow2
+*.vmdk
+*.vdi
+*.iso
+*.bin
+snapshots/
+
+# === Backup lokal & berkas sementara ===
+*.bak
+*.pristine_bak
+*.backup
+*.tmp
+*.log
+~$*
+
+# === Kredensial — JANGAN PERNAH di-commit ===
+.env
+*.env
+secrets/
+*kredensial*
+*password*
+
+# === Python ===
+__pycache__/
+*.py[cod]
+.venv/
+venv/

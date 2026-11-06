@@ -3,22 +3,25 @@
 
 **Kode Dokumen:** `NDD-BARNIBAR-v4.0`  
 **Tanggal Pembuatan:** 2026-10-25  
-**Pembaruan Terakhir:** 2026-10-26  
+**Pembaruan Terakhir:** 2026-11-04  
 **Penyusun:** Edi Suranta Ginting  
-**Status Dokumen:** *Living Document* (Diperbarui seiring implementasi lab)
+**Status Dokumen:** *As-Built* — seluruh 8 milestone selesai diimplementasikan & diuji (lihat [`03-LAPORAN-UJI-DAN-JURNAL.md`](./03-LAPORAN-UJI-DAN-JURNAL.md))
+
+> **Ringkasan status:** Dokumen ini sekarang mencerminkan **kondisi akhir** jaringan (as-built), bukan lagi rencana. Seluruh tabel inventaris, alokasi IP, dan kebijakan firewall sudah diverifikasi lewat pengujian di GNS3.
 
 ---
 
 ## DAFTAR ISI
 1. Ringkasan Eksekutif & Kebutuhan Bisnis
 2. Arsitektur Jaringan & Keputusan Desain Teknis
-3. Inventaris Perangkat & Alokasi Sumber Daya Lab
+3. Inventaris Perangkat, Penamaan Node & Alokasi Sumber Daya Lab
 4. Skema Pengalamatan IP & VLAN (*Master IP & VLAN Plan*)
 5. Desain Switching, Redundansi Gateway, & Keamanan Layer-2
-6. Desain Layanan Infrastruktur & Pemisahan Server 3-Tier
-7. Matriks Kebijakan Keamanan Firewall (*Zone-Based Firewall*)
-8. Desain WAN, Dual ISP, MPLS L3VPN, & IPsec VTI Backup
+6. Matriks Kebijakan Keamanan Firewall (*Zone-Based Firewall*)
+7. Desain WAN: Dual ISP, MPLS L3VPN, & IPsec VTI Backup
+8. Desain Monitoring & Observability
 9. Riwayat Revisi Desain (*Changelog*)
+
 
 ---
 
@@ -70,31 +73,102 @@ Diagram visual resolusi tinggi tersimpan pada: `CISCO/00-roadmap/topologi-barnib
 
 ---
 
-## 3. INVENTARIS PERANGKAT & ALOKASI SUMBER DAYA LAB
+## 3. INVENTARIS PERANGKAT, PENAMAAN NODE & ALOKASI SUMBER DAYA LAB
 
 Host Fisik: Acer Nitro AN515-58 (Intel i7-12700H, RAM 16 GB, Windows 11 + VMware GNS3 VM).  
-Nama Project GNS3 Aktif: **`BANK`** (`C:\Users\Acer\GNS3\projects\BANK`).
+Nama Project GNS3 Aktif: **`BANK`** (`C:\Users\Acer\GNS3\projects\BANK`) — **41 node**.
 
-| Nama Node (Aktual di GNS3) | Peran Arsitektur | Tipe / Image | RAM | Status Implementasi |
+### 3.1 Konvensi Penamaan
+
+| Awalan | Arti | Contoh |
+|---|---|---|
+| `R-` / `PE-` | Router / Provider Edge | `R-ISP-TELKOMSEL`, `PE-HQ` |
+| `HQ-` | Perangkat kantor pusat | `HQ-FW` |
+| `CORE-` | Switch inti (*collapsed core*) | `CORE-1`, `CORE-2` |
+| `SW-LT` | Switch akses per lantai | `SW-LT1`, `SW-LT2`, `SW-LT3` |
+| `BR1-` / `BR2-` | Perangkat Cabang 1 (Medan) / Cabang 2 (Surabaya) | `BR1-FW`, `BR2-SW` |
+| `SRV-` | Server (container Linux) | `SRV-DHCP`, `SRV-DB` |
+| `PC-` / `ATM-` / `TAMU` | End device (VPCS) | `PC-TELLER-1`, `ATM-1` |
+
+> **Alias dokumen lama:** sebagian runbook awal memakai nama sebelum standar ini diterapkan. Pemetaannya:
+> `R-HQ` → **`HQ-FW`** · `ACC-1` → **`SW-LT1`** · `PC-STAFF` → **`PC-STAFF-1`** · `PC-TELLER` → **`PC-TELLER-1`** · `PC-MANAGER-1` → **`PC-MANAGER`** · `PC-SENIOR-IT-1` → **`PC-SENIOR-IT`**.
+> Konfigurasi perangkat tidak berubah karena pergantian nama ini — hanya label node di kanvas GNS3.
+
+### 3.2 Tabel Inventaris Lengkap (As-Built)
+
+**A. Jaringan Penyedia Layanan (WAN) & Backbone MPLS**
+
+| Nama Node | Peran Arsitektur | Tipe / Image | RAM | Status |
 |---|---|---|---|---|
-| `R-ISP-TELKOMSEL` | Penyedia Internet Utama HQ (ISP-1) & Cabang 1 + Simulasi `8.8.8.8` | QEMU Cisco IOSv 15.9(3)M6 | 512 MB | ✅ Terpasang |
-| `R-ISP-BIZNET` | Penyedia Internet Cadangan HQ (ISP-2) & Cabang 2 | QEMU Cisco IOSv 15.9(3)M6 | 512 MB | ✅ Terpasang |
-| `R-HQ` | Perimeter Router, NTP Master, NAT, VPN Hub, & Firewall ZBF Pusat | QEMU Cisco IOSv 15.9(3)M6 (6 Port) | 512 MB | ✅ Aktif |
-| `CORE-1` | Collapsed Core Switch 1 (HSRP Active VLAN 10, 30, 100) | QEMU Cisco IOSvL2 | 1024 MB | ✅ Aktif |
-| `CORE-2` | Collapsed Core Switch 2 (HSRP Active VLAN 20, 50) | QEMU Cisco IOSvL2 | 1024 MB | ✅ Aktif |
-| `ACC-1` | Access Switch Pengguna HQ (PortFast, BPDU Guard, Port-Security) | QEMU Cisco IOSvL2 | 768 MB | ✅ Aktif |
-| `SRV-DHCP` | Server Pembagi IP Terpusat (`isc-dhcp-server`) | Docker `adosztal/net_toolbox` | ~25 MB | ✅ Aktif |
-| `SRV-DNS-INT` | Server Penerjemah Domain Internal (`dnsmasq` `*.barnibar.local`) | Docker `adosztal/dns` | ~20 MB | ✅ Aktif |
-| `SRV-NTP-LOG` | Server Pencatat Kejadian Terpusat (`rsyslog` UDP/TCP 514) | Docker `adosztal/net_toolbox` | ~25 MB | ✅ Aktif |
-| `SRV-APP` | Server Aplikasi Transaksi Kasir (`:8080`) & Web Intranet (`:80`) | Docker `adosztal/net_toolbox` | ~25 MB | ✅ Aktif |
-| `SRV-AAA` | Server Keamanan AAA Terpusat (TACACS+ TCP `:49`) | Docker `adosztal/aaa` | ~25 MB | ✅ Aktif |
-| `SRV-DB` | Server Basis Data Terisolasi (PostgreSQL `:5432`) | Docker `adosztal/net_toolbox` | ~25 MB | ✅ Aktif |
-| `WEB-DMZ` | Server Portal Publik Bank (Nginx `:80/:443`) | Docker `adosztal/net_toolbox` | ~25 MB | ✅ Aktif |
-| `PC-STAFF` | Komputer Karyawan HQ (VLAN 10) | VPCS | 8 MB | ✅ Aktif |
-| `PC-TELLER` | Komputer Kasir HQ (VLAN 20) | VPCS | 8 MB | ✅ Aktif |
-| `BR1-FW` & `BR1-SW` | Router+Firewall ZBF & Switch Cabang 1 | Cisco IOSv + Switch | 512 MB | ⬜ Milestone 7 |
-| `BR2-FW` & `BR2-SW` | Router+Firewall Multi-Vendor & Switch Cabang 2 | MikroTik CHR 7.23.8 + Switch | 256 MB | ⬜ Milestone 7 |
-| `PE-HQ`, `P-CORE`, `PE-BR` | Jaringan Tulang Punggung MPLS Provider (AS 65000) | Cisco IOSv / c7200 | Bertahap | ⬜ Milestone 8 |
+| `R-ISP-TELKOMSEL` | ISP-1: WAN utama HQ, WAN Cabang 1, simulasi `8.8.8.8`, peering IXP | QEMU Cisco IOSv 15.9(3)M6 | 512 MB | ✅ Aktif |
+| `R-ISP-BIZNET` | ISP-2: WAN cadangan HQ, WAN Cabang 2, peering IXP | QEMU Cisco IOSv 15.9(3)M6 | 512 MB | ✅ Aktif |
+| `PE-HQ` | Provider Edge Telco sisi Jakarta — VRF `BANK-BARNIBAR`, MP-BGP `vpnv4`, MPLS LDP | QEMU Cisco IOSv | 512 MB | ✅ Aktif |
+| `PE-BR` | Provider Edge Telco sisi cabang — meneruskan VRF ke Medan & Surabaya | QEMU Cisco IOSv | 512 MB | ✅ Aktif |
+
+**B. Kantor Pusat (HQ) — Perimeter, Core, Akses**
+
+| Nama Node | Peran Arsitektur | Tipe / Image | RAM | Status |
+|---|---|---|---|---|
+| `HQ-FW` | Perimeter router + **Zone-Based Firewall**, NAT, VPN hub, NTP master, syslog client | QEMU Cisco IOSv (6 port) | 512 MB | ✅ Aktif |
+| `CORE-1` | Switch inti 1 — HSRP Active VLAN 10/30/40/100, STP Root Primary | QEMU Cisco IOSvL2 | 1024 MB | ✅ Aktif |
+| `CORE-2` | Switch inti 2 — HSRP Active VLAN 20/50, STP Root Primary | QEMU Cisco IOSvL2 | 1024 MB | ✅ Aktif |
+| `SW-LT1` | Switch akses Lantai 1 (Lobi) — Port-Security, BPDU Guard | QEMU Cisco IOSvL2 | 768 MB | ✅ Aktif |
+| `SW-LT2` | Switch akses Lantai 2 (Operasional) | Switch bawaan GNS3 | 0 MB | ✅ Aktif |
+| `SW-LT3` | Switch akses Lantai 3 (IT Admin) | Switch bawaan GNS3 | 0 MB | ✅ Aktif |
+
+**C. Server Farm (Container Docker di GNS3 VM)**
+
+| Nama Node | Peran Layanan | IP | Image | Status |
+|---|---|---|---|---|
+| `SRV-DHCP` | DHCP terpusat (`isc-dhcp-server`) | `10.10.40.10` | `adosztal/net_toolbox` | ✅ Aktif |
+| `SRV-DNS-INT` | DNS internal `barnibar.local` (`dnsmasq`) | `10.10.40.20` | `adosztal/dns` | ✅ Aktif |
+| `SRV-NTP-LOG` | Syslog terpusat (`rsyslog` UDP/TCP 514) | `10.10.40.30` | `adosztal/net_toolbox` | ✅ Aktif |
+| `SRV-APP` | Aplikasi Core Banking `:8080` & intranet `:80` | `10.10.40.50` | `adosztal/net_toolbox` | ✅ Aktif |
+| `SRV-AAA` | TACACS+ (`tac_plus`, TCP 49) | `10.10.40.40` | `adosztal/aaa` | ✅ Aktif |
+| `SRV-DB` | PostgreSQL `:5432` di VLAN 41 terisolasi | `10.10.41.10` | `adosztal/net_toolbox` | ✅ Aktif |
+| `WEB-DMZ` | Portal publik Nginx `:80/:443` (zona DMZ) | `172.16.50.10` | `adosztal/net_toolbox` | ✅ Aktif |
+
+**D. End Device HQ (VPCS) & Perangkat Admin**
+
+| Nama Node | Peran | VLAN | Status |
+|---|---|---|---|
+| `PC-STAFF-1`, `PC-STAFF-2` | Karyawan | 10 | ✅ Aktif |
+| `PC-TELLER-1`, `PC-TELLER-2`, `ATM-1` | Kasir & mesin ATM | 20 / 25 | ✅ Aktif |
+| `PC-MANAGER` | Manajer (VLAN khusus) | 15 | ✅ Aktif |
+| `PC-SENIOR-IT`, `PC-NOC-1`, `PC-NOC-2` | Tim IT & NOC (akses pemeliharaan) | 30 | ✅ Aktif |
+| `TAMU` | Wi-Fi tamu | 60 | ✅ Aktif |
+
+**E. Kantor Cabang (Multi-Vendor)**
+
+| Nama Node | Peran | Platform | Status |
+|---|---|---|---|
+| `BR1-FW` | Router + ZBF + DHCP lokal + NAT Cabang 1 (Medan) | Cisco IOSv 15.9(3)M6 | ✅ Aktif |
+| `BR1-SW` | Switch akses cabang (VLAN 10/25/30/60) | Switch bawaan GNS3 | ✅ Aktif |
+| `BR1-IT`, `BR1-STAFF`, `BR1-ATM`, `BR1-GUEST` | End device cabang 1 | VPCS | ✅ Aktif |
+| `BR2-FW` | Router + firewall + DHCP lokal + NAT Cabang 2 (Surabaya) | **MikroTik CHR RouterOS v7** | ✅ Aktif |
+| `BR2-SW` | Switch akses cabang (VLAN 10/25/30/60) | Switch bawaan GNS3 | ✅ Aktif |
+| `BR2-IT`, `BR2-STAFF`, `BR2-ATM`, `BR2-GUEST` | End device cabang 2 | VPCS | ✅ Aktif |
+
+**F. Infrastruktur Pendukung Lab**
+
+| Nama Node | Peran | Status |
+|---|---|---|
+| `Cloud-Winbox` | Jembatan OOBM (Out-of-Band Management) ke VMnet1 untuk akses WinBox ke `BR2-FW` | ✅ Aktif |
+| `ZABBIX` | Node NAT penanda keterhubungan ke server monitoring | ✅ Aktif |
+
+### 3.3 Alokasi Sumber Daya (Capacity Planning)
+
+| Komponen | Alokasi | Catatan |
+|---|---|---|
+| RAM host fisik | 16 GB | Acer Nitro AN515-58 |
+| GNS3 VM | 4–10 GB (dinamis) | Disesuaikan beban; router IOSv ~380 MB masing-masing |
+| Router IOSv | 512 MB × 6 | `R-ISP-*`, `HQ-FW`, `PE-HQ`, `PE-BR`, `BR1-FW` |
+| Switch IOSvL2 | 768–1024 MB × 3 | `CORE-1`, `CORE-2`, `SW-LT1` |
+| Container Docker | ~20–25 MB × 9 | Server farm + `PC-SENIOR-IT`, `PC-NOC-1` |
+| Switch bawaan GNS3 | 0 MB | `BR1-SW`, `BR2-SW`, `SW-LT2`, `SW-LT3` |
+| VPCS | ~8 MB × 15 | End device |
+
+**Alasan pemilihan tipe node:** GNS3 di host 16 GB tidak sanggup menjalankan 41 node bila semuanya berupa VM penuh. Karena itu dipakai strategi hemat RAM: fungsi server dijalankan sebagai **container Docker** (bukan VM), switch cabang dan lantai memakai **switch bawaan GNS3** (tanpa OS), dan end device memakai **VPCS** (bukan VM). Hasilnya, seluruh topologi tetap berjalan dengan konsumsi RAM yang wajar tanpa mengurangi realisme konfigurasi di sisi router dan switch inti.
 
 ---
 
@@ -114,7 +188,9 @@ Nama Project GNS3 Aktif: **`BANK`** (`C:\Users\Acer\GNS3\projects\BANK`).
 | ID VLAN | Nama VLAN | Subnet | Gerbang Utama (Gateway) | Pemegang Gerbang | Rentang DHCP |
 |---|---|---|---|---|---|
 | `10` | `LAN-STAFF` | `10.10.10.0/24` | `10.10.10.254` (VIP HSRP) | `CORE-1` Aktif (`.252`), `CORE-2` Siaga (`.253`) | `.50` – `.150` |
+| `15` | `LAN-MANAGER` | `10.10.15.0/24` | `10.10.15.254` (VIP HSRP) | `CORE-1` Aktif (`.252`), `CORE-2` Siaga (`.253`) | `.50` – `.150` |
 | `20` | `LAN-TELLER` | `10.10.20.0/24` | `10.10.20.254` (VIP HSRP) | `CORE-2` Aktif (`.253`), `CORE-1` Siaga (`.252`) | `.50` – `.150` |
+| `25` | `ATM-LOBBY` | `10.10.25.0/24` | `10.10.25.254` (VIP HSRP) | `CORE-1` Aktif — *isolasi ketat, tanpa internet* | `.50` – `.150` |
 | `30` | `LAN-IT-MGMT` | `10.10.30.0/24` | `10.10.30.254` (VIP HSRP) | `CORE-1` Aktif (`.252`), `CORE-2` Siaga (`.253`) | `.50` – `.150` |
 | `40` | `RUANG-SERVER` | `10.10.40.0/24` | `10.10.40.1` | `R-HQ` (`Gi0/0.40`) — *L2 murni di Core* | IP Statis |
 | `41` | `SEC-DB` | `10.10.41.0/24` | `10.10.41.1` | `R-HQ` (`Gi0/0.41`) — *Isolasi Database* | IP Statis |
@@ -177,7 +253,90 @@ Prinsip utama: **Tolak Semua Secara Bawaan (*Default Deny*), Izinkan Hanya yang 
 
 ---
 
-## 7. RIWAYAT REVISI DESAIN (*CHANGELOG*)
+## 7. DESAIN WAN: DUAL ISP, MPLS L3VPN, & IPsec VTI BACKUP
+
+Jaringan bank tidak boleh bergantung pada satu jalur. Desain WAN dibuat **dua lapis** dengan teknologi yang berbeda, sehingga kegagalan satu lapis tidak menyentuh lapis lainnya.
+
+### 7.1 Topologi & Alamat Peering
+
+**Jalur utama — MPLS L3VPN milik operator (AS 65000):**
+
+| Segmen | Subnet | Sisi Bank | Sisi Operator | AS |
+|---|---|---|---|---|
+| CE–PE Jakarta | `10.254.0.0/30` | `HQ-FW Gi0/3` → `10.254.0.2` | `PE-HQ Gi0/1` → `10.254.0.1` | bank `65100` → telco `65000` |
+| CE–PE Medan | `10.254.1.0/30` | `BR1-FW Gi0/2` → `10.254.1.2` | `PE-BR Gi0/1` → `10.254.1.1` | bank `65200` → telco `65000` |
+| CE–PE Surabaya | `10.254.2.0/30` | `BR2-FW ether2` → `10.254.2.2` | `PE-BR Gi0/2` → `10.254.2.1` | bank `65300` → telco `65000` |
+| Backbone antar-PE | `10.255.255.0/30` | — | `PE-HQ Gi0/0` ↔ `PE-BR Gi0/0` | telco `65000` |
+
+Di sisi operator dibangun **VRF `BANK-BARNIBAR`** dengan **RD `65000:100`** dan **RT import/export `65000:100`**, lalu didistribusikan antar-PE memakai **MP-BGP `address-family vpnv4`** di atas **MPLS LDP**. Inilah yang membuat jaringan bank terasa seperti tersambung kabel langsung, padahal melewati jaringan operator bersama pelanggan lain.
+
+**Jalur cadangan — IPsec di atas internet publik:**
+
+| Terowongan | Perangkat A | Perangkat B | Subnet Tunnel |
+|---|---|---|---|
+| Jakarta ↔ Medan | `HQ-FW Tunnel1` → `10.255.1.1` | `BR1-FW Tunnel1` → `10.255.1.2` | `10.255.1.0/30` |
+| Jakarta ↔ Surabaya | `HQ-FW Tunnel2` → `10.255.2.1` | `BR2-FW gre-ke-hq` → `10.255.2.2` | `10.255.2.0/30` |
+
+Di atas kedua terowongan dijalankan **OSPF Area 0** untuk bertukar rute secara dinamis. Router ID: Jakarta `10.255.255.1`, Medan `10.20.255.1`, Surabaya `10.30.255.1`.
+
+### 7.2 Mengapa Jalur Utama Selalu Menang: *Administrative Distance*
+
+Tidak ada route-map, tidak ada *policy routing* yang rumit. Yang dipakai hanya sifat dasar router:
+
+| Sumber Rute | Administrative Distance | Posisi |
+|---|---|---|
+| eBGP (dari MPLS operator) | **20** | Selalu dipilih |
+| OSPF (dari terowongan IPsec) | **110** | Hanya dipakai bila BGP hilang |
+
+Alurnya:
+
+1. Kondisi normal → rute BGP `[20/0]` ada di tabel → dipakai. Rute OSPF tetap terhitung tetapi kalah prioritas.
+2. Kabel Telco putus → *neighbor* BGP mati → rute BGP **ditarik** → rute OSPF `[110/...]` otomatis naik jadi jalur aktif.
+3. Kabel Telco pulih → BGP membentuk *neighbor* lagi → rute `[20/0]` kembali → **preemption** otomatis, tanpa campur tangan NOC.
+
+### 7.3 Tuning Timer untuk Lingkungan Finansial
+
+| Parameter | Standar BGP | Nilai di Lab | Alasan |
+|---|---|---|---|
+| `timers bgp` | `60 180` | **`3 9`** | Deteksi link putus ≈ 9 detik, bukan 3 menit |
+| `neighbor advertisement-interval` | 30 detik | **`0`** | Perubahan rute langsung diiklankan |
+| Hasil uji nyata | — | **≈ 7 detik** peralihan penuh | Diukur pada UAT-8.9 |
+
+> Konsekuensi yang harus disadari: timer agresif menambah beban CPU dan memperbesar risiko *flapping* bila link tidak stabil. Pada jaringan produksi, nilai ini harus disesuaikan dengan kualitas link masing-masing operator.
+
+### 7.4 Keamanan Jalur Cadangan
+
+Terowongan IPsec memakai **IKEv2** dengan proposal yang disamakan di kedua vendor:
+
+| Parameter | Cisco IOS | MikroTik RouterOS v7 |
+|---|---|---|
+| Enkripsi | `aes 256` | `aes-256-cbc` |
+| Integritas | `sha256` | `sha256` |
+| Group (DH) | `14` (modp2048) | `modp2048` |
+| Umur SA | 3600 detik | 3600 detik |
+
+Perbedaan default inilah yang sempat membuat terowongan Cisco–MikroTik gagal terbentuk (tercatat sebagai Insiden #09 pada laporan UAT).
+
+---
+
+## 8. DESAIN MONITORING & OBSERVABILITY
+
+Monitoring dirancang sebagai bagian dari arsitektur, bukan aktivitas tambahan. Ringkasnya:
+
+| Aspek | Keputusan |
+|---|---|
+| Platform | **Zabbix 7.0 LTS** (server di Proxmox LXC) |
+| Pola | **Distributed monitoring** — Zabbix Proxy di jaringan lab, satu koneksi keluar TCP 10051 |
+| Protokol pengumpulan | SNMPv2c (perangkat jaringan) + ICMP/*service check* (server) |
+| Cakupan | 5 perangkat jaringan + 8 host server/link = **13 host** |
+| Output | Dashboard NOC 2 halaman + peta topologi interaktif + papan insiden |
+| Otomasi | Registrasi host & pembuatan widget via **Zabbix JSON-RPC API** |
+
+Detail lengkap (termasuk alasan pemilihan proxy, checklist metrik per lapisan, prosedur *drill*, dan troubleshooting widget) ada di dokumen terpisah: **[`04-MONITORING-NOC-ZABBIX.md`](./04-MONITORING-NOC-ZABBIX.md)**.
+
+---
+
+## 9. RIWAYAT REVISI DESAIN (*CHANGELOG*)
 
 | Tanggal | Versi | Perubahan / Revisi yang Dilakukan | Alasan Teknis |
 |---|---|---|---|
@@ -186,3 +345,8 @@ Prinsip utama: **Tolak Semua Secara Bawaan (*Default Deny*), Izinkan Hanya yang 
 | 2026-10-26 | `v4.0-rev2` | Penghapusan `clock set` manual pada `R-HQ`; menggunakan jam otomatis QEMU + zona `WIB 7 0`. | Agar cap waktu pada Syslog berjalan *real-time* sesuai jam asli sistem. |
 | 2026-10-26 | `v4.0-rev3` | Penambahan VLAN Transit `100` (`10.10.100.0/24`) dengan HSRP antara Core dan `R-HQ`, serta pemisahan `SRV-NTP-LOG` ke `CORE-2`. | Memaksa trafik VLAN 40 naik ke ZBF `R-HQ` dan menyebar risiko fisik rak server. |
 | 2026-10-26 | `v4.0-rev4` | Penambahan penguatan Layer-2: Native VLAN `999`, `nonegotiate`, parkir port mati ke VLAN `888`, dan Port-Security Sticky di `ACC-1`. | Menutup celah *VLAN Hopping*, *DTP Spoofing*, dan penyusupan kabel LAN meja kerja. |
+| 2026-10-27 | `v4.0-rev5` | Pemisahan zona DMZ ke antarmuka fisik tersendiri (`Gi0/4`) dan pembentukan VLAN 41 khusus database. | Mencegah peretas yang berhasil masuk DMZ bergerak lateral ke jaringan internal (*anti-pivot*). |
+| 2026-10-28 | `v4.0-rev6` | Penambahan VLAN 15 (Manager) & VLAN 25 (ATM) pada gedung 3 lantai, serta server AAA TACACS+ `10.10.40.40`. | Memisahkan jalur manajemen dari jalur operasional + mewajibkan otorisasi per perintah untuk perangkat jaringan. |
+| 2026-10-29 | `v4.0-rev7` | Standarisasi nama node di kanvas GNS3 (`R-HQ` → `HQ-FW`, `ACC-1` → `SW-LT1`, dsb.) dan penambahan cabang multi-vendor (`BR2-FW` MikroTik). | Menyamakan nama perangkat dengan perannya sehingga dokumentasi dan konsol tidak lagi membingungkan saat operasional. |
+| 2026-10-30 | `v4.0-rev8` | Pembangunan backbone MPLS L3VPN (AS 65000) + terowongan IPsec VTI sebagai cadangan, dengan `timers bgp 3 9`. | Memenuhi syarat *high availability* perbankan: dua jalur WAN berbeda teknologi, failover ≈ 7 detik tanpa intervensi manual. |
+| 2026-11-04 | `v4.0-rev9` | Penambahan lapisan monitoring terdistribusi (Zabbix 7.0 + proxy), registrasi 13 host via API, dan dashboard NOC. | Jaringan tanpa pengukuran tidak dapat diklaim sehat — monitoring menjadi bukti operasional sekaligus materi audit SLA. |

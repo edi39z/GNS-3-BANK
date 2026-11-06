@@ -2,9 +2,24 @@
 ## PT BANK BARNIBAR — PROYEK GNS3 v4.0
 
 **Kode Dokumen:** `NIP-BARNIBAR-v4.0`  
-**Status:** *As-Built* untuk Milestone 1–6, *Ready-to-Execute* untuk Milestone 7, Kerangka untuk Milestone 8.
+**Status:** *As-Built* — Milestone 1 sampai 9 selesai, terpasang, dan lolos UAT  
+**Pembaruan Terakhir:** 2026-11-04
 
-> Seluruh blok konfigurasi pada Milestone 1 s.d. 3 di bawah ini adalah versi bersih (*As-Built*) yang sudah mencakup seluruh perbaikan dan penguatan keamanan Layer-2 yang telah lolos uji di GNS3.
+> Seluruh blok konfigurasi di bawah ini adalah versi bersih (*as-built*) yang sudah mencakup seluruh perbaikan dan penguatan keamanan yang telah lolos uji di GNS3. Nilai sensitif (password, *pre-shared key*, SNMP community) diganti `[REDACTED]`.
+
+**Navigasi cepat:**
+[M1 WAN & Dual ISP](#milestone-1--pondasi-wan--dual-isp-kantor-pusat-) ·
+[M2 Core & L2](#milestone-2--collapsed-core-lan-hq--penguatan-keamanan-layer-2-) ·
+[M3 Layanan](#milestone-3--jalur-transit--server-docker-dhcp-dns-ntp-syslog-) ·
+[M4 ZBF](#milestone-4--firewall-zbf-pusat--sekat-divisi-) ·
+[M5 DMZ & DB](#milestone-5--zona-publik-dmz--isolasi-basis-data-3-tier-) ·
+[M6 Dual ISP](#milestone-6--redundansi-dual-isp-otomatis-di-hq-) ·
+[M6.5 Lantai & AAA](#milestone-65--ekspansi-hq-gedung-3-lantai--server-aaa-tacacs-) ·
+[M7 Cabang](#milestone-7--integrasi-dua-kantor-cabang-multi-vendor-) ·
+[M8 WAN Ganda](#milestone-8--backbone-wan-dual-path-mpls-l3vpn--ipsec-vti-) ·
+[M9 Monitoring](#milestone-9-bonus--monitoring-noc-dengan-zabbix-)
+
+> **Cara membaca dokumen ini:** setiap milestone berisi tujuan → konfigurasi → cara verifikasi. Bukti *output* konsol asli tidak diduplikasi di sini, melainkan tersimpan di [`03-LAPORAN-UJI-DAN-JURNAL.md`](./03-LAPORAN-UJI-DAN-JURNAL.md) agar dokumen ini tetap ringkas.
 
 ---
 
@@ -686,7 +701,368 @@ exit
 
 ---
 
-# KERANGKA MILESTONE 7 S.D. MILESTONE 8 *(AKAN DIISI SAAT EKSEKUSI)*
+# MILESTONE 7 — INTEGRASI DUA KANTOR CABANG MULTI-VENDOR ✅
 
-* **Milestone 7:** Pembangunan Cabang 1 (`BR1-FW` Cisco IOSv ZBF) & Cabang 2 (`BR2-FW` MikroTik CHR RouterOS) + *Local Breakout* Wi-Fi Tamu.
-* **Milestone 8:** Tulang Punggung MPLS L3VPN (`AS 65000`, VRF `BANK-BARNIBAR`, MP-BGP) sebagai jalur utama + IPsec VTI OSPF sebagai jalur cadangan otomatis.
+Tujuan: setiap cabang harus **mandiri** — punya firewall sendiri, DHCP sendiri, dan jalur internet lokal (*local breakout*) — sehingga cabang tetap bisa beroperasi meski link ke pusat sedang bermasalah.
+
+## 7.1 Topologi & Alamat Cabang
+
+| Elemen | Cabang 1 — Medan (`BR1-FW`) | Cabang 2 — Surabaya (`BR2-FW`) |
+|---|---|---|
+| Platform | Cisco IOSv 15.9(3)M6 | **MikroTik CHR RouterOS v7** |
+| Link WAN lokal | `Gi0/1` → `198.51.100.2` (ISP Telkomsel) | `ether1` → `192.0.2.2` (ISP Biznet) |
+| Link MPLS (M8) | `Gi0/2` → `10.254.1.2` | `ether2` → `10.254.2.2` |
+| Gateway LAN | Sub-interface `Gi0/0.<vlan>` | VLAN interface di atas `bridge` |
+| VLAN | 10 Staff · 25 ATM · 30 IT · 60 Guest | 10 Staff · 25 ATM · 30 IT · 60 Guest |
+| Subnet | `10.20.x.0/24` | `10.30.x.0/24` |
+
+> **Mengapa nomor VLAN 25 dan 30 dipakai untuk ATM/IT?** VLAN 25 khusus mesin ATM memudahkan penulisan ACL yang sangat ketat (hanya mengizinkan port transaksi), sedangkan VLAN 30 memisahkan jalur pemeliharaan IT dari meja pengguna biasa.
+
+## 7.2 Konfigurasi `BR1-FW` (Cisco IOSv)
+
+**A. Sub-interface VLAN + DHCP lokal**
+
+```cisco
+hostname BR1-FW
+ip dhcp excluded-address 10.20.10.1 10.20.10.49
+ip dhcp excluded-address 10.20.25.1 10.20.25.49
+ip dhcp excluded-address 10.20.30.1 10.20.30.49
+ip dhcp excluded-address 10.20.60.1 10.20.60.49
+
+interface GigabitEthernet0/0
+ description TRUNK-KE-BR1-SW
+ no ip address
+ no shutdown
+
+interface GigabitEthernet0/0.10
+ description GW-BR1-STAFF
+ encapsulation dot1Q 10
+ ip address 10.20.10.1 255.255.255.0
+ ip nat inside
+
+interface GigabitEthernet0/0.25
+ description GW-BR1-ATM
+ encapsulation dot1Q 25
+ ip address 10.20.25.1 255.255.255.0
+
+interface GigabitEthernet0/0.30
+ description GW-BR1-IT
+ encapsulation dot1Q 30
+ ip address 10.20.30.1 255.255.255.0
+ ip nat inside
+
+interface GigabitEthernet0/0.60
+ description GW-BR1-GUEST
+ encapsulation dot1Q 60
+ ip address 10.20.60.1 255.255.255.0
+ ip nat inside
+
+ip dhcp pool POOL-STAFF
+ network 10.20.10.0 255.255.255.0
+ default-router 10.20.10.1
+ dns-server 10.10.40.20
+
+ip dhcp pool POOL-ATM
+ network 10.20.25.0 255.255.255.0
+ default-router 10.20.25.1
+ dns-server 10.10.40.20
+
+ip dhcp pool POOL-IT
+ network 10.20.30.0 255.255.255.0
+ default-router 10.20.30.1
+ dns-server 10.10.40.20
+
+ip dhcp pool POOL-GUEST
+ network 10.20.60.0 255.255.255.0
+ default-router 10.20.60.1
+ dns-server 8.8.8.8
+```
+
+**B. NAT *local breakout* + kebijakan isolasi**
+
+```cisco
+ip access-list standard ACL-NAT-BR1
+ permit 10.20.10.0 0.0.0.255
+ permit 10.20.30.0 0.0.0.255
+ permit 10.20.60.0 0.0.0.255
+! CATATAN: 10.20.25.0/24 (ATM) sengaja TIDAK didaftarkan → ATM tidak pernah di-NAT,
+! sehingga tidak mungkin mencapai internet.
+
+interface GigabitEthernet0/1
+ description WAN-KE-ISP-TELKOMSEL
+ ip address 198.51.100.2 255.255.255.248
+ ip nat outside
+ no shutdown
+
+ip nat inside source list ACL-NAT-BR1 interface GigabitEthernet0/1 overload
+ip route 0.0.0.0 0.0.0.0 198.51.100.1
+```
+
+**C. Pencegahan akses tamu ke jaringan bank**
+
+```cisco
+ip access-list extended ACL-BLOKIR-GUEST
+ deny   ip 10.20.60.0 0.0.0.255 10.20.0.0 0.0.255.255
+ deny   ip 10.20.60.0 0.0.0.255 10.10.0.0 0.0.255.255
+ permit ip 10.20.60.0 0.0.0.255 any
+
+interface GigabitEthernet0/0.60
+ ip access-group ACL-BLOKIR-GUEST in
+```
+
+> **Kesalahan yang pernah terjadi:** nama ACL pada perintah NAT sempat ditulis `ACL-NAT-BRI` (huruf I) sedangkan ACL yang dideklarasikan `ACL-NAT-BR1` (angka 1), sehingga NAT tidak jalan dan paket keluar membawa IP privat. Selain itu tag `encapsulation dot1Q 20` pada sub-interface ATM seharusnya `25`. Keduanya tercatat sebagai Insiden #08.
+
+## 7.3 Konfigurasi `BR2-FW` (MikroTik RouterOS v7)
+
+**A. Bridge, VLAN, dan alamat IP**
+
+```routeros
+/interface bridge add name=br-lan
+/interface vlan
+add name=vlan10-staff interface=br-lan vlan-id=10
+add name=vlan25-atm   interface=br-lan vlan-id=25
+add name=vlan30-it    interface=br-lan vlan-id=30
+add name=vlan60-guest interface=br-lan vlan-id=60
+
+/ip address
+add address=10.30.10.1/24  interface=vlan10-staff
+add address=10.30.25.1/24  interface=vlan25-atm
+add address=10.30.30.1/24  interface=vlan30-it
+add address=10.30.60.1/24  interface=vlan60-guest
+add address=192.0.2.2/29   interface=ether1 comment="WAN ISP Biznet"
+```
+
+**B. DHCP server per VLAN**
+
+```routeros
+/ip pool
+add name=pool-staff ranges=10.30.10.50-10.30.10.150
+add name=pool-atm   ranges=10.30.25.50-10.30.25.150
+add name=pool-it    ranges=10.30.30.50-10.30.30.150
+add name=pool-guest ranges=10.30.60.50-10.30.60.150
+
+/ip dhcp-server
+add name=dhcp-staff interface=vlan10-staff address-pool=pool-staff disabled=no
+add name=dhcp-atm   interface=vlan25-atm   address-pool=pool-atm   disabled=no
+add name=dhcp-it    interface=vlan30-it    address-pool=pool-it    disabled=no
+add name=dhcp-guest interface=vlan60-guest address-pool=pool-guest disabled=no
+
+/ip dhcp-server network
+add address=10.30.10.0/24  gateway=10.30.10.1  dns-server=10.10.40.20
+add address=10.30.25.0/24  gateway=10.30.25.1  dns-server=10.10.40.20
+add address=10.30.30.0/24  gateway=10.30.30.1  dns-server=10.10.40.20
+add address=10.30.60.0/24  gateway=10.30.60.1  dns-server=8.8.8.8
+```
+
+**C. NAT *masquerade* + firewall filter (ATM & tamu diblokir)**
+
+```routeros
+/ip firewall nat
+add chain=srcnat out-interface=ether1 action=masquerade \
+    src-address-list=LAN-BOLEH-INTERNET comment="Local breakout"
+
+/ip firewall address-list
+add address=10.30.10.0/24 list=LAN-BOLEH-INTERNET
+add address=10.30.30.0/24 list=LAN-BOLEH-INTERNET
+add address=10.30.60.0/24 list=LAN-BOLEH-INTERNET
+
+/ip firewall filter
+add chain=forward action=drop src-address=10.30.25.0/24 out-interface=ether1 \
+    comment="ATM dilarang ke internet"
+add chain=forward action=drop src-address=10.30.60.0/24 \
+    dst-address=10.30.0.0/16 comment="Tamu dilarang ke LAN bank"
+add chain=forward action=drop src-address=10.30.60.0/24 \
+    dst-address=10.10.0.0/16 comment="Tamu dilarang ke HQ"
+```
+
+> **Perbedaan penting antar-vendor:** di Cisco, kebijakan NAT ditulis sebagai ACL yang di-*match*; di MikroTik, kebijakan ditulis sebagai daftar alamat (`address-list`) lalu dipanggil di rantai `srcnat`. Keduanya menghasilkan perilaku sama, tetapi cara membacanya berbeda — hal yang harus dipahami saat mengelola jaringan multi-vendor.
+
+---
+
+# MILESTONE 8 — BACKBONE WAN DUAL-PATH (MPLS L3VPN + IPsec VTI) ✅
+
+Tujuan: menyediakan **dua jalur WAN dengan teknologi berbeda** antara kantor pusat dan kedua cabang, dengan perpindahan otomatis tanpa intervensi NOC.
+
+## 8A. Terowongan Cadangan: IPsec VTI / GRE-IPsec + OSPF
+
+### A.1 `HQ-FW` — dua terowongan ke cabang
+
+```cisco
+! --- Proposal IKEv2 (disamakan dengan MikroTik: aes-256 / sha256 / group 14) ---
+crypto ikev2 proposal PROP-BARNIBAR
+ encryption aes-cbc-256
+ integrity sha256
+ group 14
+
+crypto ikev2 policy POL-BARNIBAR
+ proposal PROP-BARNIBAR
+
+crypto ikev2 keyring KR-BARNIBAR
+ peer BR1-MEDAN
+  address 198.51.100.2
+  pre-shared-key [REDACTED]
+ peer BR2-SURABAYA
+  address 192.0.2.2
+  pre-shared-key [REDACTED]
+
+crypto ikev2 profile PROF-BARNIBAR
+ match identity remote address 198.51.100.2 255.255.255.255
+ match identity remote address 192.0.2.2 255.255.255.255
+ identity local address 203.0.113.1
+ authentication remote pre-share
+ authentication local pre-share
+ keyring local KR-BARNIBAR
+
+crypto ipsec transform-set TS-BARNIBAR esp-aes 256 esp-sha256-hmac
+ mode tunnel
+
+crypto ipsec profile PROF-IPSEC
+ set transform-set TS-BARNIBAR
+ set ikev2-profile PROF-BARNIBAR
+
+! --- Terowongan ke Medan ---
+interface Tunnel1
+ description VPN-KE-BR1-MEDAN
+ ip address 10.255.1.1 255.255.255.252
+ tunnel source GigabitEthernet0/1
+ tunnel destination 198.51.100.2
+ tunnel mode ipsec ipv4
+ tunnel protection ipsec profile PROF-IPSEC
+
+! --- Terowongan ke Surabaya ---
+interface Tunnel2
+ description VPN-KE-BR2-SURABAYA
+ ip address 10.255.2.1 255.255.255.252
+ tunnel source GigabitEthernet0/2
+ tunnel destination 192.0.2.2
+ tunnel mode ipsec ipv4
+ tunnel protection ipsec profile PROF-IPSEC
+```
+
+### A.2 OSPF di atas terowongan
+
+```cisco
+router ospf 1
+ router-id 10.255.255.1
+ network 10.255.1.0 0.0.0.3 area 0
+ network 10.255.2.0 0.0.0.3 area 0
+ network 10.20.0.0 0.0.255.255 area 0
+ network 10.30.0.0 0.0.255.255 area 0
+```
+
+### A.3 `BR2-FW` (MikroTik) — GRE + IPsec + OSPF v7
+
+```routeros
+/interface gre add name=gre-ke-hq remote-address=203.0.113.1 local-address=192.0.2.2 \
+    ipsec-secret=[REDACTED] keepalive=10s
+/ip address add address=10.255.2.2/30 interface=gre-ke-hq
+
+# RouterOS v7 memisahkan OSPF menjadi instance → area → interface-template
+/routing ospf instance add name=ospf-barnibar router-id=10.30.255.1
+/routing ospf area add instance=ospf-barnibar name=backbone area-id=0.0.0.0
+/routing ospf interface-template add area=backbone interfaces=gre-ke-hq \
+    cost=10 type=ptp
+/routing ospf interface-template add area=backbone interfaces=vlan10-staff,vlan25-atm,vlan30-it
+```
+
+**Hasil tahap 8A (bukti di dokumen UAT):** tetangga OSPF `FULL` di kedua sisi, transaksi ATM cabang ke `10.10.40.50:8080` sukses, dan komunikasi antar-cabang Medan ↔ Surabaya tembus lewat HQ.
+
+## 8B. Jalur Utama: MPLS L3VPN Operator (AS 65000)
+
+### B.1 Sisi operator — `PE-HQ` & `PE-BR`
+
+```cisco
+! --- VRF pelanggan bank ---
+vrf definition BANK-BARNIBAR
+ rd 65000:100
+ route-target export 65000:100
+ route-target import 65000:100
+
+! --- MPLS LDP di backbone ---
+mpls ldp router-id Loopback0 force
+
+! --- MP-BGP antar-PE (distribusi rute VPN) ---
+router bgp 65000
+ no bgp default ipv4-unicast
+ neighbor 10.255.255.22 remote-as 65000
+ neighbor 10.255.255.22 update-source Loopback0
+ !
+ address-family vpnv4
+  neighbor 10.255.255.22 activate
+  neighbor 10.255.255.22 send-community extended
+ exit-address-family
+ !
+ address-family ipv4 vrf BANK-BARNIBAR
+  neighbor 10.254.0.2 remote-as 65100
+  neighbor 10.254.0.2 activate
+ exit-address-family
+```
+
+### B.2 Sisi bank (CE) — eBGP + timer cepat
+
+```cisco
+router bgp 65100
+ bgp log-neighbor-changes
+ timers bgp 3 9
+ neighbor 10.254.0.1 remote-as 65000
+ neighbor 10.254.0.1 advertisement-interval 0
+!
+address-family ipv4
+ neighbor 10.254.0.1 activate
+ network 10.10.0.0 mask 255.255.0.0
+exit-address-family
+```
+
+AS tiap lokasi: HQ `65100`, Medan `65200`, Surabaya `65300`.
+
+### B.3 Hasil: BGP AD 20 mengalahkan OSPF AD 110
+
+```text
+HQ-FW# show ip route bgp
+B  10.20.10.0/24 [20/0] via 10.254.0.1, GigabitEthernet0/3
+B  10.30.10.0/24 [20/0] via 10.254.0.1, GigabitEthernet0/3
+
+[admin@BR2-FW] > /ip/route/print where dst-address in 10.10.40.0/24
+0 DAb 10.10.40.0/24  10.254.2.1%ether2      20    ← BGP, dipakai
+1 D o 10.10.40.0/24  10.255.2.1%gre-ke-hq  110    ← OSPF, cadangan
+```
+
+## 8C. Uji Bencana & Pemulihan (*Disaster Recovery Test*)
+
+| Skenario | Tindakan | Hasil |
+|---|---|---|
+| Normal | — | Jalur lewat `10.254.2.1` (MPLS), RTT ≈ 8 ms |
+| Bencana | `HQ-FW(config)# interface Gi0/3` → `shutdown` | Dalam ≈ 7 detik jalur berpindah ke `10.255.2.1` (IPsec VTI), **loss 0%** |
+| Pemulihan | `no shutdown` | Rute BGP kembali, jalur otomatis memakai MPLS lagi tanpa perintah tambahan |
+
+---
+
+# MILESTONE 9 (BONUS) — MONITORING NOC DENGAN ZABBIX ✅
+
+Setelah jaringan selesai, dibangun lapisan observability agar kondisi jaringan bisa dibuktikan, bukan diasumsikan.
+
+| Komponen | Detail |
+|---|---|
+| Zabbix Server | 7.0.32 LTS di Proxmox LXC (CT 101) — `192.168.18.50`, PostgreSQL 17 |
+| Zabbix Proxy | Container Docker di GNS3 VM (`192.168.65.128`), koneksi keluar TCP 10051 |
+| Protokol | SNMPv2c pada 5 perangkat jaringan + ICMP/service check pada 8 host server |
+| Otomasi | Registrasi host & pembuatan dashboard via **JSON-RPC API** |
+| Dashboard | `NOC Bank Barnibar — Enterprise Command Center` (2 halaman + peta topologi) |
+
+Langkah instalasi lengkap, alasan pemilihan arsitektur proxy, checklist metrik, prosedur *drill*, dan troubleshooting widget ada di **[`04-MONITORING-NOC-ZABBIX.md`](./04-MONITORING-NOC-ZABBIX.md)**.
+
+---
+
+# LAMPIRAN — URUTAN EKSEKUSI YANG DISARANKAN
+
+Bila topologi dibangun ulang dari nol, urutan berikut terbukti paling sedikit menimbulkan masalah:
+
+1. **M1** — Nyalakan ISP & WAN HQ, pastikan ping `8.8.8.8` tembus sebelum lanjut.
+2. **M2** — Bangun core & akses; verifikasi `Po1`, HSRP, dan STP **sebelum** memasang server.
+3. **M3** — Nyalakan server DHCP/DNS/NTP/syslog; uji DORA dari satu PC.
+4. **M4–M5** — Pasang ZBF bertahap: mulai dari `inspect` longgar, verifikasi, lalu perketat.
+5. **M6** — Uji failover ISP dengan mencabut link, bukan dengan mengubah konfigurasi.
+6. **M6.5** — Tambah lantai & TACACS+; uji otorisasi dengan akun `noc_op`.
+7. **M7** — Bangun cabang satu per satu; jangan menyalakan dua cabang bersamaan saat pertama kali (mempermudah isolasi kesalahan).
+8. **M8** — Bangun jalur cadangan (IPsec) **lebih dulu**, pastikan OSPF `FULL`, baru pasang jalur utama MPLS.
+9. **M9** — Baru pasang monitoring setelah jaringan stabil, agar alarm yang muncul benar-benar berarti.

@@ -2,7 +2,27 @@
 ## PT BANK BARNIBAR — PROYEK GNS3 v4.0
 
 **Kode Dokumen:** `UAT-NOC-BARNIBAR-v4.0`  
-**Status:** Terverifikasi s.d. Milestone 6 (Akan terus diperbarui setiap Milestone selesai)
+**Tanggal:** 2026-11-04  
+**Status:** **FINAL — Seluruh 45 test case LULUS (100%)**  
+**Lingkup:** Milestone 1 s.d. 9 (WAN, Switching, Layanan, Keamanan, Cabang Multi-Vendor, Dual-Path WAN, Monitoring NOC)
+
+### Ringkasan Hasil per Milestone
+
+| Milestone | Jumlah Uji | Lulus | Gagal |
+|---|---|---|---|
+| M1 — WAN & Dual ISP HQ | 3 | 3 | 0 |
+| M2 — Collapsed Core & L2 Hardening | 5 | 5 | 0 |
+| M3 — Layanan Infrastruktur | 4 | 4 | 0 |
+| M4 — Firewall ZBF & Sekat Divisi | 4 | 4 | 0 |
+| M5 — DMZ & Isolasi DB 3-Tier | 4 | 4 | 0 |
+| M6 — Failover Dual ISP | 2 | 2 | 0 |
+| M6.5 — Gedung 3 Lantai & TACACS+ | 3 | 3 | 0 |
+| M7 — Cabang Multi-Vendor | 4 | 4 | 0 |
+| M8 — MPLS L3VPN + IPsec VTI | 10 | 10 | 0 |
+| M9 — Monitoring NOC (Zabbix) | 6 | 6 | 0 |
+| **TOTAL** | **45** | **45** | **0** |
+
+> **Cara membaca:** Bagian A adalah matriks uji terima. Bagian B memuat *output* konsol asli sebagai bukti (bukan rekaan). Bagian C adalah jurnal insiden nyata selama pengerjaan — bagian yang paling sering ditanyakan saat wawancara teknis, karena menunjukkan cara berpikir saat menghadapi masalah.
 
 ---
 
@@ -49,6 +69,12 @@
 | `UAT-8.8` | M8B | Dominasi Rute Utama MPLS (AD 20) vs OSPF Cadangan (AD 110) | Tabel routing memilih rute `B [20/0]` | ✅ **LULUS** |
 | `UAT-8.9` | M8C | Failover Otomatis WAN saat Jalur Utama MPLS Putus | Jalur otomatis berbelok ke IPsec VTI (Hop 2: `10.255.2.1`) | ✅ **LULUS** |
 | `UAT-8.10`| M8C | Pemulihan Jalur Utama (*Preemption*) saat Fiber Telco Pulih | Jalur otomatis kembali ke MPLS (Hop 2: `10.254.2.1`) | ✅ **LULUS** |
+| `UAT-9.1` | M9 | Proxy Zabbix terhubung ke server melalui TCP 10051 | Status proxy *Active*, *heartbeat* diterima | ✅ **LULUS** |
+| `UAT-9.2` | M9 | Pembacaan SNMPv2c pada 5 perangkat (Cisco & MikroTik) | 5/5 host berstatus **Available** | ✅ **LULUS** |
+| `UAT-9.3` | M9 | Pemantauan server farm via ICMP dari balik NAT | 8/8 host merespons (nilai ping `1`) | ✅ **LULUS** |
+| `UAT-9.4` | M9 | Dashboard NOC menampilkan status, trafik, dan insiden | Dua halaman tampil tanpa error PHP | ✅ **LULUS** |
+| `UAT-9.5` | M9 | Peta topologi interaktif menampilkan status perangkat | Ikon & garis link tampil (Sysmap ID 2) | ✅ **LULUS** |
+| `UAT-9.6` | M9 | Deteksi gangguan saat antarmuka dimatikan manual | *Problem* muncul ≤ 2 menit, hilang saat pulih | ✅ **LULUS** |
 
 ---
 
@@ -228,6 +254,31 @@ Arsitektur WAN Dual-Path PT Bank Barnibar terbukti berhasil 100%:
 
 ---
 
+## BUKTI MONITORING NOC (MILESTONE 9)
+
+### 11. Bukti Ketersediaan Host di Zabbix (2026-11-04)
+
+```text
+Host                     Grup                          Status
+HQ-FW                    Bank Barnibar Network         Available (SNMP)
+CORE-1                   Bank Barnibar Network         Available (SNMP)
+CORE-2                   Bank Barnibar Network         Available (SNMP)
+BR1-FW                   Bank Barnibar Network         Available (SNMP)
+BR2-FW                   Bank Barnibar Network         Available (SNMP)
+SRV-APP                  Bank Barnibar Server Farm     Ping = 1 (UP)
+SRV-DB                   Bank Barnibar Server Farm     Ping = 1 (UP)
+SRV-AAA                  Bank Barnibar Server Farm     Ping = 1 (UP)
+SRV-DNS-INT              Bank Barnibar Server Farm     Ping = 1 (UP)
+SRV-DHCP                 Bank Barnibar Server Farm     Ping = 1 (UP)
+SRV-NTP-LOG              Bank Barnibar Server Farm     Ping = 1 (UP)
+WEB-DMZ                  Bank Barnibar Server Farm     Ping = 1 (UP)
+WAN-INTERNET-DNS         Bank Barnibar Server Farm     Ping = 1 (UP)
+```
+
+*Analisis Bukti:* Seluruh 13 host yang dimonitor berstatus sehat — 5 perangkat jaringan terbaca melalui SNMPv2c, dan 8 host server/link merespons pemantauan ICMP. Tidak ada satu pun host yang berstatus *unknown* (yang biasanya menandakan masalah kredensial atau rute).
+
+---
+
 ## BAGIAN C — JURNAL INSIDEN & TROUBLESHOOTING SELAMA IMPLEMENTASI
 
 Bagian ini mendokumentasikan kendala teknis nyata yang muncul saat pengerjaan lab beserta akar masalah dan solusinya (bahan penting untuk wawancara teknis NOC / Network Engineer):
@@ -279,7 +330,67 @@ Bagian ini mendokumentasikan kendala teknis nyata yang muncul saat pengerjaan la
 ### Insiden #09 — Negosiasi IPsec Multi-Vendor Cisco-MikroTik (Typo IP Peer & Enkripsi Bawaan)
 * **Gejala:** (1) OSPF neighbor MikroTik Surabaya kosong; (2) Transaksi `BR1-ATM` ke `SRV-APP:8080` ditolak.
 * **Akar Masalah:**
-  1. `crypto isakmp key 3421 address 198.0.2.2` di `HQ-FW` salah ketik octet pertama (`198` vs `192.0.2.2`).
+  1. `crypto isakmp key [REDACTED] address 198.0.2.2` di `HQ-FW` salah ketik octet pertama (`198` vs `192.0.2.2`).
   2. MikroTik RouterOS v7 secara bawaan menggunakan proposal `aes-128/sha1`, sedangkan Cisco mengunci `aes-256/sha256` (Group 14).
   3. Di `HQ-FW`, `ACL-AKSES-COREBANKING` belum mendaftarkan subnet ATM cabang `10.20.25.0/24` dan `10.30.25.0/24` sehingga dibuang ZBF di `class-default`.
 * **Solusi:** Mengoreksi IP peer ke `192.0.2.2` di HQ, menyamakan profile IPsec MikroTik ke `aes-256 sha256 modp2048`, dan menambahkan permit subnet ATM cabang pada `ACL-AKSES-COREBANKING`. Seluruh ATM cabang sukses bertransaksi dan OSPF berstatus `FULL`.
+
+### Insiden #10 — Host SNMP Berstatus Merah Padahal Perangkat Hidup (Firewall Memblokir Monitoring)
+* **Gejala:** Setelah host didaftarkan di Zabbix, kelima perangkat jaringan tampil *Not available*, sedangkan ping dari GNS3 VM ke IP perangkat berhasil.
+* **Akar Masalah:** Permintaan SNMP datang dari subnet jembatan monitoring GNS3 VM (`192.168.42.0/24`), dan subnet tersebut **belum terdaftar** pada ACL Zone-Based Firewall di `HQ-FW` (`ACL-INTERNAL-KE-DMZ` dan `ACL-SENIOR-IT-KE-DB`). Paket SNMP dibuang oleh `class-default` sebelum mencapai perangkat.
+* **Solusi:** Menambahkan `permit` untuk `192.168.42.0/24` pada kedua ACL tersebut, lalu memverifikasi ulang dengan `snmpwalk` dari sisi proxy. Kelima host langsung berubah hijau.
+* **Pelajaran:** *"Bisa ping"* tidak berarti *"bisa dimonitor"*. Setiap protokol manajemen (SNMP, syslog, NetFlow) butuh izin eksplisit di firewall.
+
+### Insiden #11 — Zabbix Proxy Tidak Bisa Menjangkau Subnet Bank
+* **Gejala:** Proxy berjalan dan *heartbeat* ke server sukses, tetapi semua pengecekan ke `10.10.x.x` gagal.
+* **Akar Masalah:** GNS3 VM tidak memiliki rute menuju subnet lab (`10.0.0.0/8`, `172.16.0.0/16`). Paket keluar tetapi tidak ada jalan kembali.
+* **Solusi:** Membuat *systemd service* `bank-route.service` yang menambahkan rute statis via `virbr0` saat boot, sehingga rute bertahan setelah VM di-*restart*.
+* **Pelajaran:** Pada topologi bersarang (VM di dalam VM), rute balik sering terlupakan karena fokus hanya pada konfigurasi router.
+
+### Insiden #12 — Widget Dashboard Zabbix Error `Undefined array key "base_color"`
+* **Gejala:** Widget tabel server farm menampilkan halaman error PHP dengan *stack trace* `Undefined array key "base_color"` pada `widgets/tophosts/views/widget.view.php:70`.
+* **Akar Masalah:** Pada Zabbix 7.0, setiap kolom widget `tophosts` **wajib** memiliki atribut warna `columns.N.base_color`. Konfigurasi via API yang hanya mengisi `name`, `data`, dan `item` membuat renderer PHP 8.4 gagal.
+* **Solusi:** Menambahkan `columns.0.base_color` (`00D68F`) dan `columns.1.base_color` (`2F80ED`) pada definisi widget.
+* **Pelajaran:** Otomasi via API tidak memvalidasi kelengkapan parameter seperti halnya GUI. Selalu uji render setelah membuat widget secara programatis.
+
+---
+
+## BAGIAN D — SERAH TERIMA & KESIMPULAN
+
+### D.1 Pernyataan Kelulusan
+
+Seluruh **45 test case** pada Bagian A dinyatakan **LULUS**. Tidak ada temuan kritis (*open critical finding*) yang tersisa. Seluruh 12 insiden pada Bagian C telah ditutup dengan solusi yang terverifikasi di lapangan.
+
+| Area | Status | Catatan |
+|---|---|---|
+| Ketersediaan (HA) | ✅ Lulus | HSRP, LACP, dual ISP, dual-path WAN terbukti failover |
+| Keamanan | ✅ Lulus | ZBF, isolasi DB, anti-pivot DMZ, TACACS+ otorisasi |
+| Skalabilitas cabang | ✅ Lulus | Dua cabang multi-vendor beroperasi mandiri |
+| Observability | ✅ Lulus | 13 host terpantau, dashboard & peta interaktif |
+| Dokumentasi | ✅ Lulus | SRS, runbook, UAT, baseline konfigurasi tersedia |
+
+### D.2 Keterbatasan yang Diakui (*Known Limitations*)
+
+Dokumen yang jujur harus menyebutkan apa yang **belum** tercakup, agar tidak menimbulkan ekspektasi berlebih:
+
+1. **Tidak ada notifikasi otomatis** (email/Telegram) — insiden baru terlihat bila dashboard dibuka.
+2. **Server farm dipantau via ICMP saja** — belum ada agen yang membaca CPU/RAM/disk per server.
+3. **Belum ada *high availability* untuk server Zabbix** sendiri (single LXC container).
+4. **Pengujian keamanan bersifat fungsional**, bukan *penetration test* — belum ada pengujian eksploitasi.
+5. **Kapasitas terbatas pada host 16 GB** — jumlah node dibatasi oleh RAM, bukan oleh desain.
+
+### D.3 Rekomendasi Lanjutan
+
+| Prioritas | Rekomendasi |
+|---|---|
+| Tinggi | Konfigurasi notifikasi Zabbix + eskalasi berjenjang |
+| Tinggi | Pasang Zabbix Agent 2 di server farm untuk metrik resource |
+| Sedang | Uji *penetration test* terbatas pada zona DMZ |
+| Sedang | Tambahkan *site* ketiga sebagai latihan skalabilitas |
+| Rendah | Migrasi konfigurasi ke Ansible untuk *configuration management* |
+
+---
+
+<div align="center">
+<sub>Laporan ini merupakan bagian dari dokumentasi proyek <b>PT Bank Barnibar v4.0</b> — lihat <a href="./README.md">README</a> untuk ringkasan proyek.</sub>
+</div>
