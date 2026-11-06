@@ -11,7 +11,7 @@
 [![Zabbix](https://img.shields.io/badge/Zabbix-7.0%20LTS-d62828?style=for-the-badge)](./04-MONITORING-NOC-ZABBIX.md)
 [![Vendor](https://img.shields.io/badge/Multi--Vendor-Cisco%20%2B%20MikroTik-6f42c1?style=for-the-badge)](./02-BUKU-KERJA-IMPLEMENTASI.md)
 
-**Disusun oleh:** Edi Suranta Ginting · **Periode:** 25 Oktober – 4 November 2026
+
 
 </div>
 
