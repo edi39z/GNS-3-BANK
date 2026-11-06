@@ -86,20 +86,22 @@ Seluruh dokumentasi disusun mengikuti **standar dokumen teknis industri** (bukan
 
 ---
 
+
 ## 🏁 Rekapitulasi Milestone
 
-| Milestone | Fokus Pekerjaan | Hasil Verifikasi | Tanggal |
-|---|---|---|---|
-| **M1** | Pondasi WAN & Dual ISP HQ (`R-ISP-TELKOMSEL`, `R-ISP-BIZNET`, peering IXP) | Ping gateway & `8.8.8.8` 100% | 2026-10-25 |
-| **M2** | Collapsed Core HQ — LACP `Po1`, HSRP *Load-Sharing*, Rapid-PVST+, Native VLAN 999, Port-Security | `Po1(SU)`, STP simetris `Gi0/1`=v10/30 · `Gi0/2`=v20/50 | 2026-10-26 |
-| **M3** | Layanan infrastruktur — DHCP Relay, DNS internal, NTP Master/Client, Syslog terpusat | DORA sukses, log WIB masuk `SRV-NTP-LOG` | 2026-10-26 |
-| **M4** | Firewall ZBF pusat & sekat antar-divisi | Staff→Internet OK, Teller→Internet **diblokir + log** | 2026-10-27 |
-| **M5** | Zona publik DMZ + isolasi Database 3-tier | DNAT ke `WEB-DMZ` sukses, `SRV-APP`→DB `:5432` OK, user→DB ditolak | 2026-10-27 |
-| **M6** | Redundansi Dual ISP otomatis — IP SLA + Track + Floating Static + Route-Map NAT | Jalur pindah ke `198.51.200.2` tanpa putus | 2026-10-27 |
-| **M6.5** | Gedung 3 lantai (ATM/Manager/Tamu) + server AAA TACACS+ | `senior_it` permit `conf t`, `noc_op` ditolak + terekam | 2026-10-28 |
-| **M7** | Integrasi 2 cabang **multi-vendor** + Local Breakout | DHCP lokal jalan, ATM terisolasi, tamu terkurung | 2026-10-29 |
-| **M8** | Backbone WAN ganda: MPLS L3VPN primary + IPsec VTI backup + uji bencana | Failover 7 detik, `0% loss`, preemption otomatis | 2026-10-30 |
-| **M33** | *Bonus:* Distributed Monitoring Zabbix 7.0 (Server Proxmox + Proxy GNS3) | 13 host hijau, dashboard & map live | 2026-11-04 |
+| Milestone | Fokus Pekerjaan | Hasil Verifikasi |
+|---|---|---|
+| **M1** | Pondasi WAN & Dual ISP HQ (`R-ISP-TELKOMSEL`, `R-ISP-BIZNET`, peering IXP) | Ping gateway & `8.8.8.8` 100% |
+| **M2** | Collapsed Core HQ — LACP `Po1`, HSRP *Load-Sharing*, Rapid-PVST+, Native VLAN 999, Port-Security | `Po1(SU)`, STP simetris `Gi0/1`=v10/30 · `Gi0/2`=v20/50 |
+| **M3** | Layanan infrastruktur — DHCP Relay, DNS internal, NTP Master/Client, Syslog terpusat | DORA sukses, log WIB masuk `SRV-NTP-LOG` |
+| **M4** | Firewall ZBF pusat & sekat antar-divisi | Staff→Internet OK, Teller→Internet **diblokir + log** |
+| **M5** | Zona publik DMZ + isolasi Database 3-tier | DNAT ke `WEB-DMZ` sukses, `SRV-APP`→DB `:5432` OK, user→DB ditolak |
+| **M6** | Redundansi Dual ISP otomatis — IP SLA + Track + Floating Static + Route-Map NAT | Jalur pindah ke `198.51.200.2` tanpa putus |
+| **M6.5** | Gedung 3 lantai (ATM/Manager/Tamu) + server AAA TACACS+ | `senior_it` permit `conf t`, `noc_op` ditolak + terekam |
+| **M7** | Integrasi 2 cabang **multi-vendor** + Local Breakout | DHCP lokal jalan, ATM terisolasi, tamu terkurung |
+| **M8** | Backbone WAN ganda: MPLS L3VPN primary + IPsec VTI backup + uji bencana | Failover 7 detik, `0% loss`, preemption otomatis |
+| **M33** | *Bonus:* Distributed Monitoring Zabbix 7.0 (Server Proxmox + Proxy GNS3) | 13 host hijau, dashboard & map live |
+
 
 ---
 
