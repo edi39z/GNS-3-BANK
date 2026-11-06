@@ -1,4 +1,4 @@
-<img width="1170" height="555" alt="Cuplikan layar 2026-11-06 144151" src="https://github.com/user-attachments/assets/8443fd1f-9d8b-4003-90ff-b853a63db2b6" /># PROYEK FLAGSHIP v4.0 — PT BANK BARNIBAR (GNS3 ENTERPRISE LAB)
+PROYEK FLAGSHIP v4.0 — PT BANK BARNIBAR (GNS3 ENTERPRISE LAB)
 ![Uploading TOPOLOGI BANK.png…]()
 
 **Lokasi Project GNS3:** `C:\Users\Acer\GNS3\projects\BANK`  
