@@ -228,16 +228,6 @@ PROYEK-v4.0-BANK-BARNIBAR/
 
 ---
 
-## ▶️ Cara Membaca Repositori Ini
 
-| Jika Anda… | Mulai dari |
-|---|---|
-| Rekruter / HR yang ingin lihat ringkasan | **README ini** (Anda sudah di tempat yang tepat) |
-| Network Engineer yang ingin review desain | [`01-SRS`](./01-SRS-ARSITEKTUR-BARNIBAR.md) → [`configs/`](./configs/) |
-| Engineer yang ingin mengulang implementasi | [`02-BUKU-KERJA`](./02-BUKU-KERJA-IMPLEMENTASI.md) |
-| Auditor / QA yang ingin bukti pengujian | [`03-LAPORAN-UJI`](./03-LAPORAN-UJI-DAN-JURNAL.md) |
-| NOC / SysAdmin yang ingin lihat monitoring | [`04-MONITORING-NOC-ZABBIX.md`](./04-MONITORING-NOC-ZABBIX.md) |
-
----
 
 
