@@ -1,5 +1,7 @@
 PROYEK FLAGSHIP v4.0 — PT BANK BARNIBAR (GNS3 ENTERPRISE LAB)
-![Uploading TOPOLOGI BANK.png…]()
+
+<img width="2492" height="1382" alt="TOPOLOGI BANK" src="https://github.com/user-attachments/assets/867474d7-764a-4819-b180-51b406a44249" />
+
 
 **Lokasi Project GNS3:** `C:\Users\Acer\GNS3\projects\BANK`  
 **Platform:** GNS3 2.2.61 + GNS3 VM (VMware Workstation)  
